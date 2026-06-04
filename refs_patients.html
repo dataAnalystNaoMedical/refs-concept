@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nao Medical - Patient Portal</title>
+    
+    <!-- Google Fonts: DM Sans & DM Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Tailwind Configuration -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            DEFAULT: '#1e365f', // Nao Medical Brand Blue
+                            light: '#2d4c82',
+                            dark: '#142544',
+                            50: '#f4f6fa',
+                        },
+                        clinical: {
+                            green: '#10b981',
+                            red: '#ef4444',
+                            gray: '#f9fafb'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['"DM Sans"', 'sans-serif'],
+                        mono: ['"DM Mono"', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Custom Styles for smooth transitions */
+        body { -webkit-font-smoothing: antialiased; background-color: #f3f4f6; }
+        
+        /* Mobile-first app container */
+        .app-container {
+            max-width: 480px; /* Forces mobile-like view on desktop */
+            margin: 0 auto;
+            background-color: #ffffff;
+            min-height: 100vh;
+            box-shadow: 0 0 20px rgba(0,0,0,0.05);
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        .view-section { display: none; animation: slideUp 0.4s ease-out; }
+        .view-section.active { display: block; }
+        
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Hide number input spinners for OTP */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+            -webkit-appearance: none; margin: 0; 
+        }
+
+        /* Confetti Animation */
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: #10b981;
+            animation: fall 2s linear forwards;
+            z-index: 100;
+        }
+        @keyframes fall {
+            0% { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+        }
+
+        /* Chips styling for cancellation reasons */
+        .reason-chip.selected {
+            background-color: #1e365f;
+            color: white;
+            border-color: #1e365f;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- MAIN APP CONTAINER (Mobile Frame) -->
+    <div class="app-container flex flex-col">
+
+        <!-- Global Header -->
+        <header class="bg-white border-b border-gray-100 py-4 px-5 shadow-sm sticky top-0 z-10 flex justify-between items-center">
+            <img src="https://naomedical.com/main-page-assets/images/Nao-Medical-Logo-3.svg" alt="Nao Medical Logo" class="h-7 w-auto">
+            <div id="user-profile" class="hidden items-center gap-2">
+                <span class="text-sm font-medium text-gray-700">John D.</span>
+                <div class="w-8 h-8 rounded-full bg-brand-50 text-brand flex items-center justify-center font-bold text-sm">JD</div>
+            </div>
+        </header>
+
+        <main class="flex-grow flex flex-col relative w-full px-5 py-6">
+
+            <!-- ========================================== -->
+            <!-- SCREEN 1: OTP REQUEST                      -->
+            <!-- ========================================== -->
+            <section id="view-otp-request" class="view-section active my-auto">
+                <div class="text-center mb-8">
+                    <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-50 text-brand mb-5">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                    </div>
+                    <h2 class="text-2xl font-bold text-gray-900">Secure Patient Access</h2>
+                    <p class="text-gray-500 mt-2 text-base">Welcome John. For your privacy, let's verify it's you.</p>
+                </div>
+
+                <div class="bg-gray-50 border border-gray-200 rounded-2xl p-5 mb-8">
+                    <p class="text-sm text-gray-500 mb-1">Send a text message with my code to:</p>
+                    <p class="text-xl font-mono text-gray-900 tracking-wider">***-***-1234</p>
+                </div>
+
+                <button onclick="requestOTP()" class="w-full bg-brand hover:bg-brand-dark text-white text-lg font-medium py-4 px-4 rounded-xl shadow-md transition-colors active:scale-[0.98]">
+                    Send Verification Code
+                </button>
+            </section>
+
+
+            <!-- ========================================== -->
+            <!-- SCREEN 2: OTP VERIFICATION                 -->
+            <!-- ========================================== -->
+            <section id="view-otp-verify" class="view-section my-auto">
+                <div class="text-center mb-8">
+                    <h2 class="text-2xl font-bold text-gray-900 mb-2">Enter Your Code</h2>
+                    <p class="text-gray-500 text-base">We sent a 6-digit text message to <br><span class="font-mono text-gray-800 font-medium mt-1 inline-block">***-***-1234</span></p>
+                </div>
+
+                <!-- OTP Inputs (Fat-finger friendly) -->
+                <div class="flex justify-between gap-2 mb-8" id="otp-inputs">
+                    <input type="number" maxlength="1" class="w-12 h-14 text-center text-2xl font-mono border-2 border-gray-300 rounded-xl focus:border-brand focus:ring-0 outline-none transition-colors bg-gray-50">
+                    <input type="number" maxlength="1" class="w-12 h-14 text-center text-2xl font-mono border-2 border-gray-300 rounded-xl focus:border-brand focus:ring-0 outline-none transition-colors bg-gray-50" disabled>
+                    <input type="number" maxlength="1" class="w-12 h-14 text-center text-2xl font-mono border-2 border-gray-300 rounded-xl focus:border-brand focus:ring-0 outline-none transition-colors bg-gray-50" disabled>
+                    <input type="number" maxlength="1" class="w-12 h-14 text-center text-2xl font-mono border-2 border-gray-300 rounded-xl focus:border-brand focus:ring-0 outline-none transition-colors bg-gray-50" disabled>
+                    <input type="number" maxlength="1" class="w-12 h-14 text-center text-2xl font-mono border-2 border-gray-300 rounded-xl focus:border-brand focus:ring-0 outline-none transition-colors bg-gray-50" disabled>
+                    <input type="number" maxlength="1" class="w-12 h-14 text-center text-2xl font-mono border-2 border-gray-300 rounded-xl focus:border-brand focus:ring-0 outline-none transition-colors bg-gray-50" disabled>
+                </div>
+
+                <button id="btn-verify" onclick="verifyOTP()" class="w-full bg-gray-200 text-gray-400 cursor-not-allowed text-lg font-medium py-4 px-4 rounded-xl transition-colors mb-6" disabled>
+                    Verify & Enter
+                </button>
+
+                <p class="text-center text-sm text-gray-500">
+                    Didn't receive it? <a href="#" class="text-brand font-medium">Resend Code</a>
+                </p>
+            </section>
+
+
+            <!-- ========================================== -->
+            <!-- SCREEN 3: THE REFERRAL HUB                 -->
+            <!-- ========================================== -->
+            <section id="view-referral-hub" class="view-section">
+                
+                <!-- Dynamic Progress Bar -->
+                <div class="mb-8 px-2 relative z-0">
+                    <div class="flex items-center justify-between">
+                        <!-- Step 1 -->
+                        <div class="flex flex-col items-center relative z-10">
+                            <div style="margin-top: 19px;" id="step-1-circle" class="w-8 h-8 rounded-full bg-brand text-white flex items-center justify-center font-bold shadow-sm transition-colors duration-500">1</div>
+                            <span id="step-1-text" class="text-xs font-bold text-brand mt-2 transition-colors duration-500">Pending</span>
+                        </div>
+                        <div id="line-1" class="flex-1 h-1 bg-gray-200 -mx-4 z-0 transition-colors duration-500"></div>
+                        <!-- Step 2 -->
+                        <div class="flex flex-col items-center relative z-10">
+                            <div style="margin-top: 19px;" id="step-2-circle" class="w-8 h-8 rounded-full bg-white border-2 border-gray-200 text-gray-400 flex items-center justify-center font-bold transition-colors duration-500">2</div>
+                            <span id="step-2-text" class="text-xs font-medium text-gray-400 mt-2 transition-colors duration-500">Booked</span>
+                        </div>
+                        <div id="line-2" class="flex-1 h-1 bg-gray-200 -mx-4 z-0 transition-colors duration-500"></div>
+                        <!-- Step 3 -->
+                        <div class="flex flex-col items-center relative z-10">
+                            <div style="margin-top: 19px;" id="step-3-circle" class="w-8 h-8 rounded-full bg-white border-2 border-gray-200 text-gray-400 flex items-center justify-center font-bold transition-colors duration-500">3</div>
+                            <span id="step-3-text" class="text-xs font-medium text-gray-400 mt-2 transition-colors duration-500">Done</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="cancelled-state" class="hidden text-center py-10">
+                    <div class="w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </div>
+                    <h2 class="text-xl font-bold text-gray-900 mb-2">Referral Cancelled</h2>
+                    <p class="text-gray-500">We have notified your primary care team so they can help find you a better option.</p>
+                </div>
+
+                <!-- Main Content Area -->
+                <div id="active-referral-state">
+                    
+                    <!-- Top Status Alert -->
+                    <div id="status-alert" class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6 rounded-r-lg">
+                        <div class="flex">
+                            <div class="flex-shrink-0">
+                                <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" /></svg>
+                            </div>
+                            <div class="ml-3">
+                                <p class="text-sm text-yellow-700 font-medium">Action Needed: Please call to book.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Provider Card -->
+                    <div class="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden mb-6">
+                        <div class="p-5 border-b border-gray-100">
+                            <div class="flex items-start justify-between">
+                                <div>
+                                    <h3 class="text-xl font-bold text-gray-900">Dr. Carl Smith</h3>
+                                    <p class="text-brand font-medium text-sm mt-0.5">Cardiologist (Heart Doctor)</p>
+                                </div>
+                                <div class="w-12 h-12 bg-brand-50 rounded-full flex items-center justify-center text-brand">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-5 space-y-3">
+                                <div class="flex items-start gap-3">
+                                    <svg class="w-5 h-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                                    <div>
+                                        <p class="text-sm text-gray-800">123 Heartbeat Way, Suite 400<br>New York, NY 10001</p>
+                                        <button class="text-brand text-sm font-bold mt-1 hover:underline">Get Directions</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-gray-50 p-4">
+                            <a href="tel:5550192834" class="flex items-center justify-center w-full bg-brand text-white py-3.5 px-4 rounded-xl font-medium text-lg shadow-sm active:scale-[0.98] transition-transform gap-2">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
+                                Call to Schedule
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- PENDING ACTIONS (Visible by default) -->
+                    <div id="section-pending-actions" class="mb-8">
+                        <p class="text-sm font-medium text-gray-500 uppercase tracking-wider mb-3">Keep your care team updated:</p>
+                        <div class="space-y-3">
+                            <button onclick="openModal('modal-book')" class="w-full bg-clinical-green hover:bg-green-600 text-white text-lg font-medium py-3.5 px-4 rounded-xl shadow-sm transition-colors active:scale-[0.98]">
+                                I booked my appointment
+                            </button>
+                            <button onclick="openModal('modal-cancel')" class="w-full bg-white border border-gray-300 text-gray-600 text-lg font-medium py-3.5 px-4 rounded-xl transition-colors active:scale-[0.98]">
+                                Cancel this referral
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- BOOKED ACTIONS (Post-visit upload) - Hidden Initially -->
+                    <div id="section-booked-actions" class="hidden mb-8 animate-[slideUp_0.4s_ease-out]">
+                        <div class="bg-white border-2 border-brand-light/20 rounded-2xl p-5 mb-4 shadow-sm text-center">
+                            <div class="w-12 h-12 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-3">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            </div>
+                            <h3 class="text-lg font-bold text-gray-900 mb-1">Appointment Confirmed</h3>
+                            <p class="text-sm text-gray-500 mb-4" id="display-appt-date">You are all set for your visit.</p>
+                            
+                            <button class="w-full flex items-center justify-center gap-2 bg-gray-100 text-gray-700 py-3 rounded-xl font-medium border border-gray-200 active:bg-gray-200">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                Add to Calendar
+                            </button>
+                        </div>
+
+                        <p class="text-sm font-medium text-gray-500 uppercase tracking-wider mb-3 mt-6">Did you complete your visit?</p>
+                        <div class="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
+                            <p class="text-sm text-gray-600 mb-4">Snap a picture of your visit summary or instructions so your primary doctor stays in the loop.</p>
+                            
+                            <!-- Mobile-friendly Native Upload Simulation -->
+                            <label class="block border-2 border-dashed border-gray-300 rounded-xl p-6 text-center bg-gray-50 active:bg-gray-100 cursor-pointer mb-4">
+                                <svg class="mx-auto h-8 w-8 text-brand mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                                <span class="text-brand font-bold">Tap to Upload Documents</span>
+                                <input type="file" id="mobile-upload" class="hidden" accept="image/*,.pdf" capture="environment">
+                            </label>
+
+                            <!-- Hidden initially -->
+                            <div id="file-preview" class="hidden flex items-center justify-between bg-blue-50 border border-blue-100 p-3 rounded-lg mb-4">
+                                <div class="flex items-center gap-2">
+                                    <svg class="w-5 h-5 text-brand" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd"></path></svg>
+                                    <span class="text-sm font-medium text-brand truncate max-w-[150px]">visit_summary.jpg</span>
+                                </div>
+                                <svg class="w-5 h-5 text-clinical-green" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            </div>
+
+                            <textarea placeholder="Any notes for your primary doctor? (Optional)" rows="2" class="w-full border border-gray-300 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand mb-4"></textarea>
+
+                            <button onclick="completeVisit()" class="w-full bg-brand text-white text-lg font-medium py-3.5 px-4 rounded-xl shadow-sm transition-colors active:scale-[0.98]">
+                                Submit & Complete Referral
+                            </button>
+                        </div>
+                    </div>
+
+
+                    <!-- What to Expect Accordion -->
+                    <div class="mt-8">
+                        <button onclick="toggleAccordion('faq-1')" class="w-full flex justify-between items-center py-4 border-t border-gray-200">
+                            <span class="font-bold text-gray-900">Preparing for your visit</span>
+                            <svg id="icon-faq-1" class="w-5 h-5 text-gray-400 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </button>
+                        <div id="content-faq-1" class="hidden pb-4 text-gray-600 text-sm leading-relaxed">
+                            <ul class="list-disc pl-5 space-y-2">
+                                <li>Please arrive 15 minutes early to fill out any new patient paperwork.</li>
+                                <li>Bring your physical <strong>Photo ID</strong> and <strong>Insurance Card</strong>.</li>
+                                <li>Dr. Carl's office may require a co-pay at the time of your visit.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+            </section>
+        </main>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODALS & OVERLAYS                          -->
+    <!-- ========================================== -->
+
+    <!-- Modal: Appointment Booked -->
+    <div id="modal-book" class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-gray-900 bg-opacity-50 backdrop-blur-sm transition-opacity">
+        <div class="bg-white w-full max-w-md rounded-t-2xl sm:rounded-2xl p-6 transform transition-transform translate-y-full sm:translate-y-0" id="modal-book-content">
+            <div class="flex justify-between items-center mb-5">
+                <h3 class="text-xl font-bold text-gray-900">Log Appointment</h3>
+                <button onclick="closeModal('modal-book')" class="text-gray-400 p-2"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+            </div>
+            
+            <p class="text-gray-600 mb-6">Great! When is your appointment scheduled for?</p>
+            
+            <div class="space-y-4 mb-8">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                    <input type="date" id="appt-date" class="w-full border border-gray-300 rounded-xl px-4 py-3 text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand appearance-none bg-white">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Time</label>
+                    <input type="time" class="w-full border border-gray-300 rounded-xl px-4 py-3 text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand appearance-none bg-white">
+                </div>
+            </div>
+
+            <button onclick="confirmBooking()" class="w-full bg-clinical-green text-white text-lg font-medium py-3.5 px-4 rounded-xl shadow-md active:scale-[0.98] transition-transform">
+                Confirm Appointment
+            </button>
+        </div>
+    </div>
+
+    <!-- Modal: Cancel Referral -->
+    <div id="modal-cancel" class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-gray-900 bg-opacity-50 backdrop-blur-sm transition-opacity">
+        <div class="bg-white w-full max-w-md rounded-t-2xl sm:rounded-2xl p-6 transform transition-transform translate-y-full sm:translate-y-0" id="modal-cancel-content">
+            <div class="flex justify-between items-center mb-2">
+                <h3 class="text-xl font-bold text-gray-900">Cancel Referral</h3>
+                <button onclick="closeModal('modal-cancel')" class="text-gray-400 p-2"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+            </div>
+            
+            <p class="text-gray-600 mb-6 text-sm">Help us understand why so we can find you better care:</p>
+            
+            <!-- Easy Tapping Chips -->
+            <div class="flex flex-wrap gap-2 mb-6" id="cancel-reasons">
+                <button class="reason-chip px-4 py-2.5 border border-gray-300 rounded-full text-sm font-medium text-gray-700 transition-colors" onclick="selectChip(this)">Insurance not accepted</button>
+                <button class="reason-chip px-4 py-2.5 border border-gray-300 rounded-full text-sm font-medium text-gray-700 transition-colors" onclick="selectChip(this)">Clinic is too far</button>
+                <button class="reason-chip px-4 py-2.5 border border-gray-300 rounded-full text-sm font-medium text-gray-700 transition-colors" onclick="selectChip(this)">Appointments are too far out</button>
+                <button class="reason-chip px-4 py-2.5 border border-gray-300 rounded-full text-sm font-medium text-gray-700 transition-colors" onclick="selectChip(this)">I feel better / don't need it</button>
+                <button class="reason-chip px-4 py-2.5 border border-gray-300 rounded-full text-sm font-medium text-gray-700 transition-colors" onclick="selectChip(this)">Other</button>
+            </div>
+
+            <textarea placeholder="Tell us more (Optional)" rows="2" class="hidden w-full border border-gray-300 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand mb-6" id="cancel-other-text"></textarea>
+
+            <button onclick="submitCancellation()" class="w-full bg-brand text-white text-lg font-medium py-3.5 px-4 rounded-xl shadow-md active:scale-[0.98] transition-transform">
+                Submit Cancellation
+            </button>
+        </div>
+    </div>
+
+
+    <!-- ========================================== -->
+    <!-- JAVASCRIPT LOGIC                           -->
+    <!-- ========================================== -->
+    <script>
+        // --- Navigation Logic ---
+        function navigateTo(viewId) {
+            document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+            document.getElementById(viewId).classList.add('active');
+
+            if(viewId !== 'view-otp-request' && viewId !== 'view-otp-verify') {
+                document.getElementById('user-profile').classList.remove('hidden');
+                document.getElementById('user-profile').classList.add('flex');
+            }
+        }
+
+        // --- OTP Logic ---
+        function requestOTP() {
+            navigateTo('view-otp-verify');
+            
+            const inputs = document.querySelectorAll('#otp-inputs input');
+            const verifyBtn = document.getElementById('btn-verify');
+
+            inputs[0].removeAttribute('disabled');
+            setTimeout(() => inputs[0].focus(), 100);
+
+            inputs.forEach((input, index) => {
+                input.addEventListener('input', (e) => {
+                    if (e.target.value.length === 1) {
+                        if (index < inputs.length - 1) {
+                            inputs[index + 1].removeAttribute('disabled');
+                            inputs[index + 1].focus();
+                        }
+                    }
+                    checkOTPComplete();
+                });
+
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Backspace' && !e.target.value && index > 0) {
+                        inputs[index - 1].focus();
+                        inputs[index - 1].value = '';
+                    }
+                });
+            });
+
+            function checkOTPComplete() {
+                const allFilled = Array.from(inputs).every(input => input.value.length === 1);
+                if (allFilled) {
+                    verifyBtn.removeAttribute('disabled');
+                    verifyBtn.classList.remove('bg-gray-200', 'text-gray-400', 'cursor-not-allowed');
+                    verifyBtn.classList.add('bg-brand', 'text-white', 'shadow-md');
+                } else {
+                    verifyBtn.setAttribute('disabled', 'true');
+                    verifyBtn.classList.add('bg-gray-200', 'text-gray-400', 'cursor-not-allowed');
+                    verifyBtn.classList.remove('bg-brand', 'text-white', 'shadow-md');
+                }
+            }
+        }
+
+        function verifyOTP() {
+            const btn = document.getElementById('btn-verify');
+            const originalText = btn.innerText;
+            btn.innerText = "Verifying...";
+            
+            setTimeout(() => {
+                btn.innerText = originalText;
+                navigateTo('view-referral-hub');
+            }, 600);
+        }
+
+        // --- Modals Logic (Mobile Drawer Style) ---
+        function openModal(modalId) {
+            const modal = document.getElementById(modalId);
+            const content = document.getElementById(modalId + '-content');
+            
+            modal.classList.remove('hidden');
+            // Slight delay for slide up animation
+            setTimeout(() => {
+                content.classList.remove('translate-y-full');
+            }, 10);
+        }
+
+        function closeModal(modalId) {
+            const modal = document.getElementById(modalId);
+            const content = document.getElementById(modalId + '-content');
+            
+            content.classList.add('translate-y-full');
+            // Wait for slide down to finish before hiding
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
+        }
+
+        // --- Patient Actions ---
+        
+        // 1. Confetti Function
+        function fireConfetti() {
+            for(let i=0; i<30; i++) {
+                let conf = document.createElement('div');
+                conf.className = 'confetti';
+                conf.style.left = Math.random() * 100 + 'vw';
+                conf.style.animationDelay = Math.random() * 0.5 + 's';
+                conf.style.backgroundColor = ['#10b981', '#1e365f', '#fcd34d', '#ef4444'][Math.floor(Math.random()*4)];
+                document.body.appendChild(conf);
+                setTimeout(() => conf.remove(), 2500);
+            }
+        }
+
+        // 2. Booking confirmed
+        function confirmBooking() {
+            closeModal('modal-book');
+            fireConfetti();
+
+            // Format date if provided
+            const dateInput = document.getElementById('appt-date').value;
+            if(dateInput) {
+                const dateObj = new Date(dateInput);
+                const options = { weekday: 'long', month: 'long', day: 'numeric' };
+                document.getElementById('display-appt-date').innerText = "Scheduled for " + dateObj.toLocaleDateString('en-US', options);
+            }
+
+            // Update Progress Bar to step 2
+            document.getElementById('step-1-circle').className = "w-8 h-8 rounded-full bg-brand text-white flex items-center justify-center font-bold shadow-sm transition-colors duration-500";
+            document.getElementById('step-1-text').className = "text-xs font-bold text-brand mt-2 transition-colors duration-500";
+            document.getElementById('step-1-circle').innerHTML = `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>`;
+            
+            document.getElementById('line-1').classList.remove('bg-gray-200');
+            document.getElementById('line-1').classList.add('bg-brand');
+            
+            document.getElementById('step-2-circle').className = "w-8 h-8 rounded-full bg-brand text-white flex items-center justify-center font-bold shadow-sm transition-colors duration-500";
+            document.getElementById('step-2-text').className = "text-xs font-bold text-brand mt-2 transition-colors duration-500";
+
+            // Change UI State
+            document.getElementById('status-alert').classList.add('hidden');
+            document.getElementById('section-pending-actions').classList.add('hidden');
+            document.getElementById('section-booked-actions').classList.remove('hidden');
+        }
+
+        // 3. Complete Visit Upload
+        const mobileUpload = document.getElementById('mobile-upload');
+        mobileUpload.addEventListener('change', (e) => {
+            if(e.target.files.length > 0) {
+                document.getElementById('file-preview').classList.remove('hidden');
+            }
+        });
+
+        function completeVisit() {
+            // Update Progress Bar to step 3
+            document.getElementById('step-2-circle').innerHTML = `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>`;
+            document.getElementById('line-2').classList.remove('bg-gray-200');
+            document.getElementById('line-2').classList.add('bg-brand');
+            
+            document.getElementById('step-3-circle').className = "w-8 h-8 rounded-full bg-clinical-green text-white flex items-center justify-center font-bold shadow-sm transition-colors duration-500";
+            document.getElementById('step-3-circle').innerHTML = `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>`;
+            document.getElementById('step-3-text').className = "text-xs font-bold text-clinical-green mt-2 transition-colors duration-500";
+            
+            document.getElementById('step-3-text').innerText = "Complete";
+
+            // Clean UI
+            document.getElementById('section-booked-actions').innerHTML = `
+                <div class="text-center py-10 bg-white rounded-2xl border border-gray-100 shadow-sm animate-[slideUp_0.4s_ease-out]">
+                    <div class="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                    </div>
+                    <h2 class="text-xl font-bold text-gray-900 mb-2">You're All Set!</h2>
+                    <p class="text-gray-500 text-sm px-4">Your documents have been securely sent to your primary care doctor. You can close this window.</p>
+                </div>
+            `;
+        }
+
+        // 4. Cancel Logic (Chips & Submit)
+        function selectChip(btn) {
+            // Deselect all
+            const chips = document.querySelectorAll('.reason-chip');
+            chips.forEach(c => c.classList.remove('selected', 'bg-brand', 'text-white', 'border-brand'));
+            
+            // Select clicked
+            btn.classList.add('selected', 'bg-brand', 'text-white', 'border-brand');
+
+            // Show text area if "Other"
+            if(btn.innerText === "Other") {
+                document.getElementById('cancel-other-text').classList.remove('hidden');
+            } else {
+                document.getElementById('cancel-other-text').classList.add('hidden');
+            }
+        }
+
+        function submitCancellation() {
+            closeModal('modal-cancel');
+            
+            // Hide main content, show cancelled state
+            document.getElementById('active-referral-state').classList.add('hidden');
+            document.getElementById('cancelled-state').classList.remove('hidden');
+            
+            // Disable progress bar
+            document.getElementById('step-1-circle').className = "w-8 h-8 rounded-full bg-red-100 text-red-500 flex items-center justify-center font-bold";
+            document.getElementById('step-1-circle').innerHTML = "X";
+            document.getElementById('step-1-text').innerText = "Cancelled";
+            document.getElementById('step-1-text').className = "text-xs font-bold text-red-500 mt-2";
+        }
+
+        // 5. Accordion Logic
+        function toggleAccordion(id) {
+            const content = document.getElementById('content-' + id);
+            const icon = document.getElementById('icon-' + id);
+            
+            if(content.classList.contains('hidden')) {
+                content.classList.remove('hidden');
+                icon.classList.add('rotate-180');
+            } else {
+                content.classList.add('hidden');
+                icon.classList.remove('rotate-180');
+            }
+        }
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nao Medical - Admin Action Hub</title>
+    
+    <!-- Google Fonts: DM Sans & DM Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Tailwind Configuration -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            DEFAULT: '#1e365f',
+                            light: '#2d4c82',
+                            dark: '#142544',
+                            50: '#f4f6fa',
+                        },
+                        clinical: {
+                            green: '#10b981',
+                            red: '#ef4444',
+                            yellow: '#f59e0b',
+                            gray: '#f9fafb'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['"DM Sans"', 'sans-serif'],
+                        mono: ['"DM Mono"', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body { -webkit-font-smoothing: antialiased; background-color: #f9fafb; }
+        
+        /* Custom Scrollbar for Drawer & Table */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* Row hover actions transition */
+        .row-actions { opacity: 0; pointer-events: none; transition: all 0.2s ease; }
+        tr:hover .row-actions { opacity: 1; pointer-events: auto; }
+
+        /* Floating Bulk Action Bar Animation */
+        .bulk-bar { transform: translateY(150%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .bulk-bar.visible { transform: translateY(0); }
+    </style>
+</head>
+<body class="text-gray-800 font-sans min-h-screen flex flex-col overflow-hidden">
+
+    <!-- Global Admin Navbar -->
+    <header class="bg-white border-b border-gray-200 py-3 px-6 flex justify-between items-center z-20 shrink-0 shadow-sm relative">
+        <div class="flex items-center gap-4">
+            <img src="https://naomedical.com/main-page-assets/images/Nao-Medical-Logo-3.svg" alt="Nao Medical Logo" class="h-8 w-auto">
+            <div class="h-6 w-px bg-gray-300"></div>
+            <span class="text-brand font-bold text-lg tracking-tight">Admin Action Hub</span>
+        </div>
+        <div class="flex items-center gap-6">
+            <button onclick="triggerNewReferral()" class="bg-brand hover:bg-brand-dark text-white font-medium py-2 px-4 rounded-lg shadow-sm transition-colors flex items-center gap-2 text-sm active:scale-95 transform transition-transform">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                New Referral
+            </button>
+            <div class="flex items-center gap-3 border-l border-gray-200 pl-6">
+                <div class="text-right">
+                    <p class="text-sm font-bold text-gray-900">Sarah Jenkins</p>
+                    <p class="text-xs text-gray-500">Clinical Coordinator</p>
+                </div>
+                <div class="w-9 h-9 rounded-full bg-brand-50 text-brand border border-brand-light/20 flex items-center justify-center font-bold">SJ</div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Workspace Area -->
+    <main class="flex-grow flex flex-col relative w-full h-[calc(100vh-65px)] overflow-hidden">
+        
+        <div class="px-6 pt-6 shrink-0">
+            <div class="flex justify-between items-end mb-4">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-900">Morning Triage</h1>
+                    <p class="text-gray-500 text-sm mt-1">Focus only on exceptions. Achieve Inbox Zero.</p>
+                </div>
+                <p class="text-xs font-mono text-gray-400">Last synced: Just now</p>
+            </div>
+
+            <!-- Triage Buckets (Widgets) -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <button onclick="setFilter('critical')" id="tab-critical" class="triage-tab bg-white border-2 border-transparent border-red-500 rounded-xl p-4 shadow-sm text-left transition-all hover:shadow-md relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 w-16 h-16 bg-red-50 rounded-bl-full -z-0"></div>
+                    <div class="relative z-10">
+                        <p class="text-xs font-bold text-clinical-red uppercase tracking-wider flex items-center gap-1.5">
+                            <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>
+                            Critical Exceptions
+                        </p>
+                        <h2 class="text-2xl font-black text-gray-900 mt-1" id="count-critical">0</h2>
+                        <p class="text-xs text-gray-500 mt-0.5">Denied, OON, Cancelled</p>
+                    </div>
+                </button>
+
+                <button onclick="setFilter('stuck')" id="tab-stuck" class="triage-tab bg-white border border-gray-200 rounded-xl p-4 shadow-sm text-left transition-all hover:border-yellow-400 relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 w-16 h-16 bg-yellow-50 rounded-bl-full -z-0"></div>
+                    <div class="relative z-10">
+                        <p class="text-xs font-bold text-yellow-600 uppercase tracking-wider flex items-center gap-1.5">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            Stuck / Aging
+                        </p>
+                        <h2 class="text-2xl font-black text-gray-900 mt-1" id="count-stuck">0</h2>
+                        <p class="text-xs text-gray-500 mt-0.5">Unread > 72h by Specialist</p>
+                    </div>
+                </button>
+
+                <button onclick="setFilter('closed')" id="tab-closed" class="triage-tab bg-white border border-gray-200 rounded-xl p-4 shadow-sm text-left transition-all hover:border-green-400 relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 w-16 h-16 bg-green-50 rounded-bl-full -z-0"></div>
+                    <div class="relative z-10">
+                        <p class="text-xs font-bold text-clinical-green uppercase tracking-wider flex items-center gap-1.5">
+                            <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+                            Ready to Close
+                        </p>
+                        <h2 class="text-2xl font-black text-gray-900 mt-1" id="count-closed">0</h2>
+                        <p class="text-xs text-gray-500 mt-0.5">Docs uploaded, pending archive</p>
+                    </div>
+                </button>
+            </div>
+
+            <!-- Enhanced Filter Bar -->
+            <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm mb-4">
+                <div class="flex flex-wrap items-end gap-4">
+                    <!-- Date Range -->
+                    <div class="flex flex-col">
+                        <label class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Date Range</label>
+                        <div class="flex items-center gap-2">
+                            <input type="date" id="filter-date-start" class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-brand focus:border-brand">
+                            <span class="text-gray-400">-</span>
+                            <input type="date" id="filter-date-end" class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-brand focus:border-brand">
+                        </div>
+                    </div>
+                    
+                    <!-- Specialty Filter -->
+                    <div class="flex flex-col min-w-[140px]">
+                        <label class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Specialty</label>
+                        <select id="filter-specialty" class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-brand focus:border-brand bg-white">
+                            <option value="">All Specialties</option>
+                            <!-- Injected via JS -->
+                        </select>
+                    </div>
+
+                    <!-- Specialist (To) Filter -->
+                    <div class="flex flex-col min-w-[160px]">
+                        <label class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Referred To (Specialist)</label>
+                        <select id="filter-specialist" class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-brand focus:border-brand bg-white">
+                            <option value="">All Specialists</option>
+                            <!-- Injected via JS -->
+                        </select>
+                    </div>
+
+                    <!-- PCP (From) Filter -->
+                    <div class="flex flex-col min-w-[160px]">
+                        <label class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Referred From (PCP)</label>
+                        <select id="filter-pcp" class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-brand focus:border-brand bg-white">
+                            <option value="">All PCPs</option>
+                            <!-- Injected via JS -->
+                        </select>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="flex items-center gap-2 ml-auto">
+                        <button onclick="clearFilters()" class="text-gray-500 hover:text-gray-700 hover:bg-gray-100 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors">Clear</button>
+                        <button onclick="applyFilters()" class="bg-brand text-white hover:bg-brand-dark px-4 py-1.5 rounded-lg text-sm font-medium shadow-sm transition-colors flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path></svg>
+                            Apply Filters
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scrollable Data Grid Area -->
+        <div class="flex-grow overflow-auto px-6 pb-24 relative">
+            
+            <div class="flex items-center justify-between py-2 border-b border-gray-200 bg-gray-50/95 backdrop-blur sticky top-0 z-10">
+                <div class="flex items-center gap-3">
+                    <h3 class="text-sm font-bold text-gray-700" id="table-title">Critical Exceptions Queue</h3>
+                    <span id="filter-indicator" class="hidden bg-blue-100 text-blue-800 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wide border border-blue-200">Filtered</span>
+                </div>
+                
+                <!-- Master Checkbox Context -->
+                <div class="flex items-center gap-2 hidden" id="selection-context">
+                    <input type="checkbox" id="master-checkbox" onchange="toggleAllCheckboxes(this)" class="w-4 h-4 text-brand rounded border-gray-300 focus:ring-brand cursor-pointer">
+                    <label for="master-checkbox" class="text-sm text-gray-500 font-medium cursor-pointer">Select All for Bulk Action</label>
+                </div>
+            </div>
+
+            <!-- Enhanced Focused Referral Queue -->
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead>
+                    <tr>
+                        <th scope="col" class="w-10 px-4 py-3"></th>
+                        <th scope="col" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Patient</th>
+                        <th scope="col" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Date & From (PCP)</th>
+                        <th scope="col" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Referred To (Specialty)</th>
+                        <th scope="col" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status & Blocker</th>
+                        <th scope="col" class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="queue-body" class="bg-white divide-y divide-gray-100">
+                    <!-- JS will inject rows here based on active filter -->
+                </tbody>
+            </table>
+            
+            <!-- Empty State -->
+            <div id="empty-state" class="hidden flex-col items-center justify-center py-16 text-center">
+                <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center text-gray-400 mb-4">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path></svg>
+                </div>
+                <h3 class="text-lg font-bold text-gray-900">No Referrals Found</h3>
+                <p class="text-gray-500 text-sm mt-1">Try adjusting your filters or check a different triage bucket.</p>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Floating Bulk Action Bar (Hidden by default) -->
+    <div id="bulk-action-bar" class="bulk-bar fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-6 z-30">
+        <span class="font-medium text-sm"><span id="selected-count" class="font-bold text-brand-50">0</span> referrals selected</span>
+        <div class="h-5 w-px bg-gray-600"></div>
+        <button onclick="executeBulkNudge()" id="btn-bulk-nudge" class="text-sm font-bold bg-brand hover:bg-brand-light px-4 py-1.5 rounded-full transition-colors active:scale-95 flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+            Bulk Nudge Specialists
+        </button>
+        <button onclick="clearSelection()" class="text-gray-400 hover:text-white p-1 transition-colors"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- OVERLAYS & SLIDE-OUT DRAWERS               -->
+    <!-- ========================================== -->
+
+    <div id="drawer-overlay" class="hidden fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-40 transition-opacity" onclick="closeDrawer()"></div>
+
+    <!-- The Detail Drawer -->
+    <div id="detail-drawer" class="fixed inset-y-0 right-0 w-full max-w-md bg-white shadow-2xl transform translate-x-full transition-transform duration-300 z-50 flex flex-col border-l border-gray-200">
+        
+        <div id="drawer-banner" class="shrink-0 p-4 bg-red-50 border-b border-red-100 flex items-start gap-3">
+            <svg class="w-6 h-6 text-red-500 mt-0.5 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path></svg>
+            <div>
+                <p class="text-xs font-bold text-red-600 uppercase tracking-wider mb-0.5" id="drawer-banner-title">Critical Exception</p>
+                <p class="text-sm font-medium text-red-900" id="drawer-banner-desc">Dr. Carl Smith rejected - "Insurance Not Accepted"</p>
+            </div>
+            <button onclick="closeDrawer()" class="ml-auto text-gray-400 hover:text-gray-600 p-1"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+        </div>
+
+        <div class="flex-grow overflow-y-auto p-6">
+            
+            <div class="flex items-center gap-4 mb-6 pb-6 border-b border-gray-100">
+                <div class="w-12 h-12 rounded-full bg-brand-50 text-brand flex items-center justify-center font-bold text-xl border border-brand-light/20" id="drawer-initials">JD</div>
+                <div>
+                    <h2 class="text-xl font-bold text-gray-900" id="drawer-patient-name">John Doe</h2>
+                    <p class="text-sm font-mono text-gray-500">MRN: NAO-884-291 • BCBS PPO</p>
+                </div>
+            </div>
+
+            <div class="mb-8 space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <p class="text-xs text-gray-400 uppercase tracking-wider font-semibold">Referred By (PCP)</p>
+                        <p class="text-sm font-medium text-gray-900 mt-0.5" id="drawer-pcp">Dr. S. Jenkins</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-400 uppercase tracking-wider font-semibold">Assigned Specialist</p>
+                        <p class="text-sm font-medium text-gray-900 mt-0.5" id="drawer-specialist">Dr. Carl Smith (Cardiology)</p>
+                    </div>
+                </div>
+                
+                <div>
+                    <p class="text-xs text-gray-400 uppercase tracking-wider font-semibold">Referral Notes</p>
+                    <p class="text-sm text-gray-700 bg-gray-50 p-3 rounded-lg border border-gray-100 italic mt-1" id="drawer-notes">"Patient needs evaluate for exertional angina. R/O active CAD."</p>
+                </div>
+                
+                <!-- Dynamic File Attachment Box (Shared Documents) -->
+                <div id="drawer-files" class="hidden mt-4 bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                    <div class="bg-gray-50 px-4 py-2 border-b border-gray-200 flex items-center gap-2">
+                        <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path></svg>
+                        <p class="text-xs font-bold text-gray-700 uppercase tracking-wider">Documents Shared by Specialist</p>
+                    </div>
+                    <div class="p-3 space-y-2" id="drawer-docs-list">
+                        <!-- JS injects links here -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <p class="text-sm font-bold text-gray-900 mb-4">Audit Trail</p>
+                <div class="relative border-l-2 border-gray-200 ml-2 space-y-6 pb-2" id="drawer-timeline">
+                    <!-- Injected dynamically -->
+                </div>
+            </div>
+        </div>
+
+        <div class="shrink-0 p-5 bg-white border-t border-gray-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]" id="drawer-footer-actions">
+            <!-- Injected based on context -->
+        </div>
+
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed top-6 right-6 bg-gray-900 text-white px-6 py-4 rounded-xl shadow-2xl transform translate-x-full opacity-0 transition-all duration-300 z-50 flex items-center gap-3 border border-gray-700">
+        <svg class="w-5 h-5 text-clinical-green" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        <span id="toast-msg" class="text-sm font-medium">Action successful.</span>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- JAVASCRIPT LOGIC (Mocking Behavior)        -->
+    <!-- ========================================== -->
+    <script>
+        // --- 1. Enhanced Mock Database ---
+        let db = [
+            // CRITICAL BUCKET
+            { id: 101, bucket: 'critical', patient: 'John Doe', initials: 'JD', date: '2023-10-25', pcp: 'Dr. Sarah Jenkins', specialty: 'Cardiology', provider: 'Dr. Carl Smith', aging: 4, status: 'Denied', blocker: 'Insurance Not Accepted', notes: 'Patient needs evaluate for exertional angina. R/O active CAD.', timeline: [
+                { time: 'Oct 25, 2023', desc: 'Referral sent to Dr. Carl Smith' },
+                { time: 'Oct 26, 2023', desc: 'Patient clicked Magic Link' },
+                { time: 'Today 07:15 AM', desc: 'Specialist Denied: "Insurance Not Accepted"', alert: true }
+            ]},
+            { id: 102, bucket: 'critical', patient: 'Maria Garcia', initials: 'MG', date: '2023-10-27', pcp: 'Dr. A. Patel', specialty: 'Neurology', provider: 'Dr. H. Chen', aging: 2, status: 'Patient Cancelled', blocker: 'Wait time too long', notes: 'Frequent migraines with aura over last 2 months.', timeline: [
+                { time: 'Oct 27, 2023', desc: 'Referral sent' },
+                { time: 'Today 08:00 AM', desc: 'Patient Cancelled: "Wait time too long"', alert: true }
+            ]},
+            { id: 103, bucket: 'critical', patient: 'Robert Vance', initials: 'RV', date: '2023-10-28', pcp: 'Dr. S. Jenkins', specialty: 'Orthopedics', provider: 'Dr. B. Allen', aging: 1, status: 'Error', blocker: 'Missing Demographics', notes: 'Right knee pain, suspect meniscus tear.', timeline: [
+                { time: 'Yesterday', desc: 'System Error: Demographics sync failed', alert: true }
+            ]},
+
+            // STUCK BUCKET
+            { id: 201, bucket: 'stuck', patient: 'David Palmer', initials: 'DP', date: '2023-10-25', pcp: 'Dr. M. Lee', specialty: 'Endocrinology', provider: 'Dr. S. Fox', aging: 4, status: 'Unread', blocker: 'Awaiting Specialist Review', notes: 'Elevated A1C, needs diabetes management plan.', timeline: [{ time: '4 days ago', desc: 'Sent to Specialist' }] },
+            { id: 202, bucket: 'stuck', patient: 'Chloe O\'Brian', initials: 'CO', date: '2023-10-24', pcp: 'Dr. A. Patel', specialty: 'Gastroenterology', provider: 'Dr. T. Bauer', aging: 5, status: 'Unread', blocker: 'Awaiting Specialist Review', notes: 'Chronic GERD not responding to PPIs.', timeline: [{ time: '5 days ago', desc: 'Sent to Specialist' }] },
+            { id: 203, bucket: 'stuck', patient: 'Nina Myers', initials: 'NM', date: '2023-10-26', pcp: 'Dr. S. Jenkins', specialty: 'Cardiology', provider: 'Dr. Carl Smith', aging: 3, status: 'Read', blocker: 'Specialist viewed, no action taken', notes: 'Follow up on mild arrhythmia.', timeline: [{ time: '3 days ago', desc: 'Read by Specialist' }] },
+            { id: 204, bucket: 'stuck', patient: 'Tony Almeida', initials: 'TA', date: '2023-10-25', pcp: 'Dr. M. Lee', specialty: 'Orthopedics', provider: 'Dr. M. Dessler', aging: 4, status: 'Unread', blocker: 'Awaiting Specialist Review', notes: 'Post-op shoulder checkup.', timeline: []},
+
+            // CLOSED LOOP BUCKET (With PDF Examples)
+            { id: 301, bucket: 'closed', patient: 'James Heller', initials: 'JH', date: '2023-10-15', pcp: 'Dr. Sarah Jenkins', specialty: 'Cardiology', provider: 'Dr. Carl Smith', aging: 14, status: 'Docs Uploaded', blocker: 'Ready for Archive', notes: 'Initial consult for pacemaker evaluation.', 
+              docs: [{ name: 'Heller_Consult_Notes_Signed.pdf', url: 'https://pdfobject.com/pdf/sample.pdf' }],
+              timeline: [
+                { time: 'Oct 15, 2023', desc: 'Referral sent' },
+                { time: 'Oct 28, 2023', desc: 'Patient attended visit' },
+                { time: 'Today 06:30 AM', desc: 'Specialist uploaded "Consult Notes"', success: true }
+            ]},
+            { id: 302, bucket: 'closed', patient: 'Audrey Raines', initials: 'AR', date: '2023-10-21', pcp: 'Dr. A. Patel', specialty: 'Neurology', provider: 'Dr. H. Chen', aging: 8, status: 'Completed', blocker: 'Ready for Archive', notes: 'Routine neuropathy follow up.', 
+              docs: [{ name: 'Raines_Lab_Results_EKG.pdf', url: 'https://pdfobject.com/pdf/sample.pdf' }, { name: 'Visit_Summary.pdf', url: 'https://pdfobject.com/pdf/sample.pdf' }],
+              timeline: [
+                { time: 'Yesterday', desc: 'Specialist marked as complete and uploaded 2 files.', success: true }
+            ]},
+            { id: 303, bucket: 'closed', patient: 'Wayne Palmer', initials: 'WP', date: '2023-10-08', pcp: 'Dr. M. Lee', specialty: 'Physical Therapy', provider: 'Elite Rehab Center', aging: 21, status: 'Completed', blocker: 'Discharged by Specialist', notes: 'Post ACL surgery rehab program.', 
+              docs: [{ name: 'Discharge_Summary_Signed.pdf', url: 'https://pdfobject.com/pdf/sample.pdf' }],
+              timeline: [
+                { time: 'Today 07:00 AM', desc: 'Specialist marked referral as Completed', success: true }
+            ]},
+        ];
+
+        // --- 2. State & Filter Management ---
+        let currentBucket = 'critical';
+        let selectedIds = new Set();
+        let currentDrawerId = null;
+        let activeFilters = { start: '', end: '', specialty: '', specialist: '', pcp: '' };
+
+        function populateDropdowns() {
+            const specialties = [...new Set(db.map(item => item.specialty))].sort();
+            const specialists = [...new Set(db.map(item => item.provider))].sort();
+            const pcps = [...new Set(db.map(item => item.pcp))].sort();
+
+            const injectOptions = (id, arr) => {
+                const select = document.getElementById(id);
+                arr.forEach(val => select.innerHTML += `<option value="${val}">${val}</option>`);
+            };
+
+            injectOptions('filter-specialty', specialties);
+            injectOptions('filter-specialist', specialists);
+            injectOptions('filter-pcp', pcps);
+        }
+
+        // --- 3. UI Rendering & Triage Navigation ---
+        function setFilter(bucket) {
+            currentBucket = bucket;
+            clearSelection();
+            
+            // UI Tab active states
+            ['critical', 'stuck', 'closed'].forEach(b => {
+                const tab = document.getElementById(`tab-${b}`);
+                tab.classList.remove('border-red-500', 'border-yellow-400', 'border-green-400');
+                if(b !== bucket) tab.classList.add('border-transparent');
+            });
+
+            const activeTab = document.getElementById(`tab-${bucket}`);
+            if(bucket === 'critical') activeTab.classList.add('border-red-500');
+            if(bucket === 'stuck') activeTab.classList.add('border-yellow-400');
+            if(bucket === 'closed') activeTab.classList.add('border-green-400');
+
+            // Set Title
+            const titles = {
+                'critical': 'Critical Exceptions Queue',
+                'stuck': 'Stuck & Aging Referral Queue',
+                'closed': 'Pending Final Review & Archive'
+            };
+            document.getElementById('table-title').innerText = titles[bucket];
+
+            // Show batch selection only in stuck
+            document.getElementById('selection-context').classList.toggle('hidden', bucket !== 'stuck');
+
+            renderQueue();
+            updateCounts();
+        }
+
+        function updateCounts() {
+            document.getElementById('count-critical').innerText = db.filter(i => i.bucket === 'critical').length;
+            document.getElementById('count-stuck').innerText = db.filter(i => i.bucket === 'stuck').length;
+            document.getElementById('count-closed').innerText = db.filter(i => i.bucket === 'closed').length;
+        }
+
+        // Apply filters via Submit Button
+        function applyFilters() {
+            activeFilters.start = document.getElementById('filter-date-start').value;
+            activeFilters.end = document.getElementById('filter-date-end').value;
+            activeFilters.specialty = document.getElementById('filter-specialty').value;
+            activeFilters.specialist = document.getElementById('filter-specialist').value;
+            activeFilters.pcp = document.getElementById('filter-pcp').value;
+
+            const hasActiveFilter = Object.values(activeFilters).some(v => v !== '');
+            document.getElementById('filter-indicator').classList.toggle('hidden', !hasActiveFilter);
+
+            renderQueue();
+        }
+
+        function clearFilters() {
+            document.getElementById('filter-date-start').value = '';
+            document.getElementById('filter-date-end').value = '';
+            document.getElementById('filter-specialty').value = '';
+            document.getElementById('filter-specialist').value = '';
+            document.getElementById('filter-pcp').value = '';
+            
+            activeFilters = { start: '', end: '', specialty: '', specialist: '', pcp: '' };
+            document.getElementById('filter-indicator').classList.add('hidden');
+            
+            renderQueue();
+        }
+
+        function getStatusBadge(status) {
+            if(['Denied', 'Error', 'Patient Cancelled', 'No Show'].includes(status)) 
+                return `<span class="bg-red-100 text-red-800 text-xs font-bold px-2 py-1 rounded-md uppercase tracking-wider">${status}</span>`;
+            if(['Unread', 'Read'].includes(status)) 
+                return `<span class="bg-yellow-100 text-yellow-800 text-xs font-bold px-2 py-1 rounded-md uppercase tracking-wider">${status}</span>`;
+            return `<span class="bg-green-100 text-green-800 text-xs font-bold px-2 py-1 rounded-md uppercase tracking-wider">${status}</span>`;
+        }
+
+        function formatDateDisplay(dateStr) {
+            const d = new Date(dateStr);
+            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        }
+
+        function renderQueue() {
+            const body = document.getElementById('queue-body');
+            const emptyState = document.getElementById('empty-state');
+            
+            // Filter Data (Bucket + Search Form criteria)
+            let filtered = db.filter(item => {
+                if (item.bucket !== currentBucket) return false;
+                
+                if (activeFilters.specialty && item.specialty !== activeFilters.specialty) return false;
+                if (activeFilters.specialist && item.provider !== activeFilters.specialist) return false;
+                if (activeFilters.pcp && item.pcp !== activeFilters.pcp) return false;
+                
+                if (activeFilters.start) {
+                    if (new Date(item.date) < new Date(activeFilters.start)) return false;
+                }
+                if (activeFilters.end) {
+                    if (new Date(item.date) > new Date(activeFilters.end)) return false;
+                }
+
+                return true;
+            });
+
+            if (filtered.length === 0) {
+                body.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                emptyState.classList.add('flex');
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+            emptyState.classList.remove('flex');
+            body.innerHTML = '';
+
+            filtered.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-brand-50 transition-colors cursor-pointer group border-b border-gray-100 last:border-0";
+                
+                tr.onclick = (e) => {
+                    if(e.target.tagName !== 'INPUT' && e.target.closest('button') === null) {
+                        openDrawer(item.id);
+                    }
+                };
+
+                const checkboxHtml = currentBucket === 'stuck' ? 
+                    `<input type="checkbox" onchange="toggleSelection(event, ${item.id})" class="row-checkbox w-4 h-4 text-brand rounded border-gray-300 focus:ring-brand cursor-pointer" ${selectedIds.has(item.id) ? 'checked' : ''}>` 
+                    : '';
+
+                tr.innerHTML = `
+                    <td class="px-4 py-4 whitespace-nowrap" onclick="event.stopPropagation()">
+                        ${checkboxHtml}
+                    </td>
+                    <td class="px-4 py-4 whitespace-nowrap">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-full bg-white text-brand flex items-center justify-center font-bold text-xs border border-gray-200 shadow-sm">${item.initials}</div>
+                            <div>
+                                <span class="block font-bold text-gray-900">${item.patient}</span>
+                                <span class="block text-xs font-mono text-gray-500 mt-0.5">${item.aging} days aging</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-4 py-4 whitespace-nowrap">
+                        <p class="text-sm font-medium text-gray-900">${formatDateDisplay(item.date)}</p>
+                        <p class="text-xs text-gray-500 mt-0.5">${item.pcp}</p>
+                    </td>
+                    <td class="px-4 py-4 whitespace-nowrap">
+                        <p class="text-sm text-gray-900 font-medium">${item.provider}</p>
+                        <p class="text-xs text-gray-500 mt-0.5">${item.specialty}</p>
+                    </td>
+                    <td class="px-4 py-4 whitespace-nowrap">
+                        <div class="flex flex-col items-start gap-1">
+                            ${getStatusBadge(item.status)}
+                            <span class="text-xs text-gray-500 truncate max-w-[180px]" title="${item.blocker}">${item.blocker}</span>
+                        </div>
+                    </td>
+                    <td class="px-4 py-4 whitespace-nowrap text-right">
+                        <!-- Inline Action Micro-interactions (Visible on hover) -->
+                        <div class="row-actions flex items-center justify-end gap-2">
+                            ${currentBucket === 'stuck' ? `
+                                <button onclick="singleNudge(event, ${item.id})" class="p-1.5 text-gray-400 hover:text-brand hover:bg-white border border-transparent hover:border-gray-200 rounded-md transition-all shadow-sm" title="Send Reminder">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+                                </button>
+                            ` : ''}
+                            <button class="p-1.5 text-gray-400 hover:text-brand hover:bg-white border border-transparent hover:border-gray-200 rounded-md transition-all shadow-sm" title="View Full Details">
+                                <span class="text-xs font-semibold px-2">Review &rarr;</span>
+                            </button>
+                        </div>
+                    </td>
+                `;
+                body.appendChild(tr);
+            });
+        }
+
+        // --- 4. Batch Processing / Select Logic ---
+        function toggleSelection(event, id) {
+            if(event.target.checked) selectedIds.add(id);
+            else selectedIds.delete(id);
+            updateBulkActionBar();
+        }
+
+        function toggleAllCheckboxes(masterCheckbox) {
+            const rowCheckboxes = document.querySelectorAll('.row-checkbox');
+            if(masterCheckbox.checked) {
+                // Get currently filtered stuck IDs
+                const currentFiltered = db.filter(i => i.bucket === 'stuck' && (!activeFilters.specialty || i.specialty === activeFilters.specialty));
+                currentFiltered.forEach(i => selectedIds.add(i.id));
+                rowCheckboxes.forEach(cb => cb.checked = true);
+            } else {
+                selectedIds.clear();
+                rowCheckboxes.forEach(cb => cb.checked = false);
+            }
+            updateBulkActionBar();
+        }
+
+        function updateBulkActionBar() {
+            const bar = document.getElementById('bulk-action-bar');
+            const count = document.getElementById('selected-count');
+            count.innerText = selectedIds.size;
+            
+            if(selectedIds.size > 0) {
+                bar.classList.add('visible');
+            } else {
+                bar.classList.remove('visible');
+                const mcb = document.getElementById('master-checkbox');
+                if(mcb) mcb.checked = false;
+            }
+        }
+
+        function clearSelection() {
+            selectedIds.clear();
+            document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+            updateBulkActionBar();
+        }
+
+        function executeBulkNudge() {
+            const btn = document.getElementById('btn-bulk-nudge');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = `<svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Sending SMS/Emails...`;
+            
+            setTimeout(() => {
+                showToast(`Successfully nudged ${selectedIds.size} specialist clinics.`);
+                clearSelection();
+                btn.innerHTML = originalText;
+            }, 1000);
+        }
+
+        function singleNudge(event, id) {
+            event.stopPropagation();
+            showToast(`Reminder sent to clinic for patient ID ${id}`);
+        }
+
+        // --- 5. Context Drawer Logic ---
+        function openDrawer(id) {
+            const item = db.find(i => i.id === id);
+            currentDrawerId = id;
+            if(!item) return;
+
+            // Populate Info
+            document.getElementById('drawer-patient-name').innerText = item.patient;
+            document.getElementById('drawer-initials').innerText = item.initials;
+            document.getElementById('drawer-pcp').innerText = item.pcp;
+            document.getElementById('drawer-specialist').innerText = `${item.provider} (${item.specialty})`;
+            document.getElementById('drawer-notes').innerText = item.notes;
+
+            // Configure Banner based on Bucket
+            const banner = document.getElementById('drawer-banner');
+            const bTitle = document.getElementById('drawer-banner-title');
+            const bDesc = document.getElementById('drawer-banner-desc');
+            const filesBox = document.getElementById('drawer-files');
+            const docsList = document.getElementById('drawer-docs-list');
+            
+            banner.className = 'shrink-0 p-4 border-b flex items-start gap-3';
+            filesBox.classList.add('hidden');
+            docsList.innerHTML = '';
+
+            if (item.bucket === 'critical') {
+                banner.classList.add('bg-red-50', 'border-red-100');
+                banner.querySelector('svg').className.baseVal = "w-6 h-6 text-red-500 mt-0.5 shrink-0";
+                bTitle.className = "text-xs font-bold text-red-600 uppercase tracking-wider mb-0.5";
+                bDesc.className = "text-sm font-medium text-red-900";
+                bTitle.innerText = "Critical Exception: " + item.status;
+                bDesc.innerText = item.blocker;
+            } else if (item.bucket === 'stuck') {
+                banner.classList.add('bg-yellow-50', 'border-yellow-100');
+                banner.querySelector('svg').className.baseVal = "w-6 h-6 text-yellow-600 mt-0.5 shrink-0";
+                bTitle.className = "text-xs font-bold text-yellow-700 uppercase tracking-wider mb-0.5";
+                bDesc.className = "text-sm font-medium text-yellow-900";
+                bTitle.innerText = "Action Needed: Stuck Referral";
+                bDesc.innerText = `Waiting on ${item.provider} for ${item.aging} days.`;
+            } else if (item.bucket === 'closed') {
+                banner.classList.add('bg-green-50', 'border-green-100');
+                banner.querySelector('svg').className.baseVal = "w-6 h-6 text-green-600 mt-0.5 shrink-0";
+                bTitle.className = "text-xs font-bold text-green-700 uppercase tracking-wider mb-0.5";
+                bDesc.className = "text-sm font-medium text-green-900";
+                bTitle.innerText = "Ready to Archive";
+                bDesc.innerText = item.blocker;
+                
+                // Render Shared Documents (PDFs)
+                if(item.docs && item.docs.length > 0) {
+                    filesBox.classList.remove('hidden');
+                    item.docs.forEach(doc => {
+                        docsList.innerHTML += `
+                            <a href="${doc.url}" target="_blank" class="group flex items-center justify-between bg-white p-3 rounded-lg border border-gray-200 shadow-sm hover:border-brand hover:shadow-md transition-all cursor-pointer">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-8 h-8 rounded bg-red-50 text-red-500 flex items-center justify-center">
+                                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"></path></svg>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm font-bold text-gray-900 group-hover:text-brand transition-colors">${doc.name}</p>
+                                        <p class="text-xs text-gray-500">PDF Document • Tap to view</p>
+                                    </div>
+                                </div>
+                                <svg class="w-5 h-5 text-gray-400 group-hover:text-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                            </a>
+                        `;
+                    });
+                }
+            }
+
+            // Populate Timeline
+            const tlContainer = document.getElementById('drawer-timeline');
+            tlContainer.innerHTML = '';
+            item.timeline.forEach((event, idx) => {
+                let dotColor = "bg-gray-200 border-white";
+                let textStyle = "text-gray-600";
+                if(event.alert) { dotColor = "bg-red-500 border-red-100"; textStyle = "text-red-600 font-bold"; }
+                if(event.success) { dotColor = "bg-green-500 border-green-100"; textStyle = "text-green-700 font-bold"; }
+                
+                tlContainer.innerHTML += `
+                    <div class="relative">
+                        <div class="absolute -left-[9px] top-1 w-4 h-4 rounded-full ${dotColor} border-2"></div>
+                        <div class="pl-6">
+                            <p class="text-xs text-gray-400 font-mono mb-0.5">${event.time}</p>
+                            <p class="text-sm ${textStyle}">${event.desc}</p>
+                        </div>
+                    </div>
+                `;
+            });
+
+            // Configure Sticky Footer Actions
+            const footer = document.getElementById('drawer-footer-actions');
+            if (item.bucket === 'critical') {
+                footer.innerHTML = `
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Resolution Action</label>
+                    <div class="flex gap-2">
+                        <select class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-brand focus:border-brand bg-white">
+                            <option>Reassign to Dr. A. Patel (In-Network)</option>
+                            <option>Reassign to Dr. S. Lewis (In-Network)</option>
+                            <option>Return to Primary Care Provider</option>
+                        </select>
+                        <button onclick="resolveReferral(${item.id})" class="bg-brand hover:bg-brand-dark text-white font-medium py-2 px-4 rounded-lg transition-colors text-sm shadow-sm">Execute</button>
+                    </div>
+                `;
+            } else if (item.bucket === 'stuck') {
+                footer.innerHTML = `
+                    <button onclick="singleNudge(event, ${item.id})" class="w-full bg-white border border-brand text-brand hover:bg-brand-50 font-medium py-2.5 px-4 rounded-lg transition-colors shadow-sm mb-2">Resend OTP Secure Link</button>
+                    <button onclick="resolveReferral(${item.id})" class="w-full text-gray-500 hover:text-red-500 text-sm font-medium py-2 transition-colors">Cancel Referral & Reassign...</button>
+                `;
+            } else if (item.bucket === 'closed') {
+                footer.innerHTML = `
+                    <button onclick="resolveReferral(${item.id})" class="w-full bg-clinical-green hover:bg-green-600 text-white text-lg font-bold py-3.5 px-4 rounded-xl shadow-md active:scale-[0.98] transition-transform flex items-center justify-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                        Archive to Patient EHR
+                    </button>
+                `;
+            }
+
+            // Animate In
+            document.getElementById('drawer-overlay').classList.remove('hidden');
+            setTimeout(() => document.getElementById('detail-drawer').classList.remove('translate-x-full'), 10);
+        }
+
+        function closeDrawer() {
+            document.getElementById('detail-drawer').classList.add('translate-x-full');
+            setTimeout(() => {
+                document.getElementById('drawer-overlay').classList.add('hidden');
+                currentDrawerId = null;
+            }, 300);
+        }
+
+        // --- 6. Execution Actions ---
+        function resolveReferral(id) {
+            // Remove item from DB (Simulating it moving out of the queue)
+            db = db.filter(i => i.id !== id);
+            closeDrawer();
+            
+            // Re-render
+            setTimeout(() => {
+                renderQueue();
+                updateCounts();
+                showToast(currentBucket === 'closed' ? "Referral Archived to EHR successfully." : "Referral successfully resolved and removed from queue.");
+            }, 300);
+        }
+
+        function triggerNewReferral() {
+            showToast("Opening internal EHR integration to start new referral...", "success");
+        }
+
+        function showToast(message, type = "success") {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-msg').innerText = message;
+            
+            toast.classList.remove('translate-x-full', 'opacity-0');
+            
+            setTimeout(() => {
+                toast.classList.add('translate-x-full', 'opacity-0');
+            }, 3000);
+        }
+
+        // Initialize App
+        window.onload = () => {
+            populateDropdowns();
+            setFilter('critical');
+        };
+
+    </script>
+</body>
+</html>
